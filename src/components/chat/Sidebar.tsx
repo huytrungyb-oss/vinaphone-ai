@@ -47,10 +47,13 @@ export default function Sidebar({ userName }: { userName: string }) {
 
   return (
     <aside className="w-72 shrink-0 h-full bg-(--sidebar-bg) text-white flex flex-col">
-      <div className="flex items-center gap-2 px-4 py-4 border-b border-white/10">
+      <Link
+        href="/"
+        className="flex items-center gap-2 px-4 py-4 border-b border-white/10 hover:bg-(--sidebar-bg-hover) transition-colors"
+      >
         <Image src="/logo.svg" alt="Vinaphone AI" width={32} height={32} />
         <span className="font-bold text-lg">Vinaphone AI</span>
-      </div>
+      </Link>
 
       <div className="p-3">
         <Link
