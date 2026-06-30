@@ -1,4 +1,10 @@
+import dns from "node:dns";
 import mongoose from "mongoose";
+
+// Một số ISP/mạng nội bộ (vd: VNPT, Viettel) khiến Node.js không tra cứu được
+// DNS SRV record của MongoDB Atlas (mongodb+srv://) dù hệ điều hành tra được bình thường.
+// Ép Node dùng DNS công cộng để tránh lỗi "querySrv ECONNREFUSED".
+dns.setServers(["8.8.8.8", "1.1.1.1"]);
 
 const MONGODB_URI = process.env.MONGODB_URI as string;
 

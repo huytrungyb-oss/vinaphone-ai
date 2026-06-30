@@ -30,7 +30,8 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ id: user._id.toString(), name: user.name, email: user.email });
-  } catch {
+  } catch (err) {
+    console.error("REGISTER ERROR:", err);
     return NextResponse.json({ error: "Đã có lỗi xảy ra, vui lòng thử lại" }, { status: 500 });
   }
 }
