@@ -38,7 +38,7 @@ export default function Home() {
           cùng trợ lý AI thông minh của Vinaphone.
         </p>
         <Link
-          href="/register"
+          href="/chat"
           className="px-8 py-3.5 rounded-xl bg-(--vnp-red) hover:bg-(--vnp-red-dark) text-white font-semibold text-lg shadow-lg transition-colors"
         >
           Bắt đầu trò chuyện ngay
