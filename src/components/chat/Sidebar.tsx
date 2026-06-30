@@ -4,8 +4,9 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { Plus, MessageSquare, Trash2, LogOut, UserPlus } from "lucide-react";
+import { Plus, MessageSquare, Trash2, LogOut, UserPlus, X } from "lucide-react";
 import Image from "next/image";
+import { useSidebar } from "@/components/chat/SidebarContext";
 
 type ConversationListItem = {
   _id: string;
@@ -16,6 +17,7 @@ type ConversationListItem = {
 export default function Sidebar({ userName }: { userName: string | null }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { isOpen, close } = useSidebar();
   const isGuest = !userName;
   const [conversations, setConversations] = useState<ConversationListItem[]>([]);
   const [loading, setLoading] = useState(!isGuest);
@@ -37,6 +39,11 @@ export default function Sidebar({ userName }: { userName: string | null }) {
     loadConversations();
   }, [loadConversations, pathname]);
 
+  useEffect(() => {
+    close();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
   async function handleDelete(id: string, e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
@@ -48,14 +55,35 @@ export default function Sidebar({ userName }: { userName: string | null }) {
   }
 
   return (
-    <aside className="w-72 shrink-0 h-full bg-(--sidebar-bg) text-white flex flex-col">
-      <Link
-        href="/"
-        className="flex items-center gap-2 px-4 py-4 border-b border-white/10 hover:bg-(--sidebar-bg-hover) transition-colors"
+    <>
+      {isOpen && (
+        <div
+          onClick={close}
+          className="fixed inset-0 bg-black/50 z-30 sm:hidden"
+          aria-hidden="true"
+        />
+      )}
+      <aside
+        className={`fixed sm:static inset-y-0 left-0 z-40 w-72 shrink-0 h-full bg-(--sidebar-bg) text-white flex flex-col transition-transform duration-200 ${
+          isOpen ? "translate-x-0" : "-translate-x-full sm:translate-x-0"
+        }`}
       >
-        <Image src="/logo.svg" alt="Vinaphone AI" width={32} height={32} />
-        <span className="font-bold text-lg">Vinaphone AI</span>
-      </Link>
+        <div className="flex items-center justify-between px-2 border-b border-white/10">
+          <Link
+            href="/"
+            className="flex-1 flex items-center gap-2 px-2 py-4 hover:bg-(--sidebar-bg-hover) transition-colors rounded-lg"
+          >
+            <Image src="/logo.svg" alt="Vinaphone AI" width={32} height={32} />
+            <span className="font-bold text-lg">Vinaphone AI</span>
+          </Link>
+          <button
+            onClick={close}
+            className="sm:hidden p-2 text-white/60 hover:text-white transition-colors"
+            aria-label="Đóng menu"
+          >
+            <X size={20} />
+          </button>
+        </div>
 
       <div className="p-3">
         <Link
@@ -136,6 +164,7 @@ export default function Sidebar({ userName }: { userName: string | null }) {
           </div>
         )}
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }

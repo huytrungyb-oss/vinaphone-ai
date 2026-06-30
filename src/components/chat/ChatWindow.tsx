@@ -3,11 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Send, Bot, User, Sparkles, Lock } from "lucide-react";
+import { Send, Bot, User, Sparkles, Lock, Menu } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { isProModel, type ModelId, DEFAULT_GUEST_MODEL } from "@/lib/models";
 import ModelSelector from "@/components/chat/ModelSelector";
+import { useSidebar } from "@/components/chat/SidebarContext";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -30,6 +31,7 @@ const SUGGESTIONS = [
 
 export default function ChatWindow({ conversationId, initialMessages, initialModel, isGuest = false }: Props) {
   const router = useRouter();
+  const { toggle } = useSidebar();
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages || []);
   const [input, setInput] = useState("");
   const [model, setModel] = useState(initialModel || DEFAULT_GUEST_MODEL);
@@ -164,10 +166,17 @@ export default function ChatWindow({ conversationId, initialMessages, initialMod
 
   return (
     <div className="flex flex-col h-full">
-      <header className="flex items-center justify-between px-6 py-3 border-b border-(--vnp-gray-200) bg-white">
-        <div className="flex items-center gap-2">
-          <Sparkles size={18} className="text-(--vnp-blue)" />
-          <span className="font-medium text-sm text-(--vnp-gray-900)">Vinaphone AI</span>
+      <header className="flex items-center justify-between px-3 sm:px-6 py-3 border-b border-(--vnp-gray-200) bg-white">
+        <div className="flex items-center gap-2 min-w-0">
+          <button
+            onClick={toggle}
+            className="sm:hidden shrink-0 p-1.5 -ml-1 text-(--vnp-gray-700) hover:text-(--vnp-blue) transition-colors"
+            aria-label="Mở menu"
+          >
+            <Menu size={20} />
+          </button>
+          <Sparkles size={18} className="text-(--vnp-blue) hidden sm:block shrink-0" />
+          <span className="font-medium text-sm text-(--vnp-gray-900) truncate">Vinaphone AI</span>
         </div>
         <ModelSelector value={model} onChange={handleModelChange} isGuest={isGuest} />
       </header>
