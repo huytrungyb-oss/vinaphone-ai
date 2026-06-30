@@ -3,6 +3,11 @@ import { auth } from "@/lib/auth";
 import { connectDB } from "@/lib/db";
 import Conversation from "@/models/Conversation";
 import { getOpenAI } from "@/lib/openai";
+import { getGemini } from "@/lib/gemini";
+import { getProviderForModel } from "@/lib/models";
+
+const SYSTEM_PROMPT =
+  "Bạn là Vinaphone AI, trợ lý ảo thông minh của Vinaphone. Hãy trả lời bằng tiếng Việt thân thiện, chính xác và hữu ích.";
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -39,6 +44,9 @@ export async function POST(req: Request) {
     content: m.content,
   }));
 
+  const selectedModel = conversation.model || "gpt-4o-mini";
+  const provider = getProviderForModel(selectedModel);
+
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
@@ -50,24 +58,38 @@ export async function POST(req: Request) {
       let fullResponse = "";
 
       try {
-        const completion = await getOpenAI().chat.completions.create({
-          model: conversation.model || "gpt-4o-mini",
-          messages: [
-            {
-              role: "system",
-              content:
-                "Bạn là Vinaphone AI, trợ lý ảo thông minh của Vinaphone. Hãy trả lời bằng tiếng Việt thân thiện, chính xác và hữu ích.",
-            },
-            ...chatHistory,
-          ],
-          stream: true,
-        });
+        if (provider === "gemini") {
+          const contents = chatHistory.map((m: { role: string; content: string }) => ({
+            role: m.role === "assistant" ? "model" : "user",
+            parts: [{ text: m.content }],
+          }));
 
-        for await (const chunk of completion) {
-          const delta = chunk.choices[0]?.delta?.content || "";
-          if (delta) {
-            fullResponse += delta;
-            controller.enqueue(encoder.encode(`event: token\ndata: ${JSON.stringify({ delta })}\n\n`));
+          const response = await getGemini().models.generateContentStream({
+            model: selectedModel,
+            contents,
+            config: { systemInstruction: SYSTEM_PROMPT },
+          });
+
+          for await (const chunk of response) {
+            const delta = chunk.text || "";
+            if (delta) {
+              fullResponse += delta;
+              controller.enqueue(encoder.encode(`event: token\ndata: ${JSON.stringify({ delta })}\n\n`));
+            }
+          }
+        } else {
+          const completion = await getOpenAI().chat.completions.create({
+            model: selectedModel,
+            messages: [{ role: "system", content: SYSTEM_PROMPT }, ...chatHistory],
+            stream: true,
+          });
+
+          for await (const chunk of completion) {
+            const delta = chunk.choices[0]?.delta?.content || "";
+            if (delta) {
+              fullResponse += delta;
+              controller.enqueue(encoder.encode(`event: token\ndata: ${JSON.stringify({ delta })}\n\n`));
+            }
           }
         }
 
