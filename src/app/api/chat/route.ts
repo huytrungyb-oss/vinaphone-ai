@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { connectDB } from "@/lib/db";
 import Conversation from "@/models/Conversation";
-import { openai } from "@/lib/openai";
+import { getOpenAI } from "@/lib/openai";
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
       let fullResponse = "";
 
       try {
-        const completion = await openai.chat.completions.create({
+        const completion = await getOpenAI().chat.completions.create({
           model: conversation.model || "gpt-4o-mini",
           messages: [
             {
