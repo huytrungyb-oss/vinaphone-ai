@@ -8,7 +8,7 @@ import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -19,7 +19,7 @@ export default function LoginPage() {
     setLoading(true);
 
     const res = await signIn("credentials", {
-      email,
+      phone,
       password,
       redirect: false,
     });
@@ -27,7 +27,7 @@ export default function LoginPage() {
     setLoading(false);
 
     if (res?.error) {
-      setError("Email hoặc mật khẩu không đúng");
+      setError("Số điện thoại hoặc mật khẩu không đúng");
       return;
     }
 
@@ -46,14 +46,14 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-(--vnp-gray-900) mb-1">Email</label>
+            <label className="block text-sm font-medium text-(--vnp-gray-900) mb-1">Số điện thoại</label>
             <input
-              type="email"
+              type="tel"
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
               className="w-full px-4 py-2.5 rounded-lg border border-(--vnp-gray-200) focus:outline-none focus:ring-2 focus:ring-(--vnp-blue)"
-              placeholder="ban@email.com"
+              placeholder="0912345678"
             />
           </div>
 

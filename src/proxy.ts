@@ -10,7 +10,9 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const { pathname } = req.nextUrl;
 
-  const isProtected = pathname.startsWith("/chat");
+  // /chat (trang chat mới) công khai cho khách dùng model thường.
+  // Chỉ /chat/<id> (xem lại hội thoại đã lưu) mới yêu cầu đăng nhập.
+  const isProtected = /^\/chat\/.+/.test(pathname);
 
   if (isProtected && !isLoggedIn) {
     const url = new URL("/login", req.nextUrl.origin);

@@ -9,7 +9,7 @@ import Image from "next/image";
 export default function RegisterPage() {
   const router = useRouter();
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -22,7 +22,7 @@ export default function RegisterPage() {
     const res = await fetch("/api/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({ name, phone, password }),
     });
 
     const data = await res.json();
@@ -34,7 +34,7 @@ export default function RegisterPage() {
     }
 
     const signInRes = await signIn("credentials", {
-      email,
+      phone,
       password,
       redirect: false,
     });
@@ -73,14 +73,14 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-(--vnp-gray-900) mb-1">Email</label>
+            <label className="block text-sm font-medium text-(--vnp-gray-900) mb-1">Số điện thoại</label>
             <input
-              type="email"
+              type="tel"
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
               className="w-full px-4 py-2.5 rounded-lg border border-(--vnp-gray-200) focus:outline-none focus:ring-2 focus:ring-(--vnp-blue)"
-              placeholder="ban@email.com"
+              placeholder="0912345678"
             />
           </div>
 

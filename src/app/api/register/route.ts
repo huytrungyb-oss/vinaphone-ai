@@ -2,13 +2,19 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
+import { normalizePhone } from "@/lib/phone";
 
 export async function POST(req: Request) {
   try {
-    const { name, email, password } = await req.json();
+    const { name, phone, password } = await req.json();
 
-    if (!name || !email || !password) {
+    if (!name || !phone || !password) {
       return NextResponse.json({ error: "Vui lòng điền đầy đủ thông tin" }, { status: 400 });
+    }
+
+    const normalizedPhone = normalizePhone(phone);
+    if (!normalizedPhone) {
+      return NextResponse.json({ error: "Số điện thoại không hợp lệ" }, { status: 400 });
     }
 
     if (password.length < 6) {
@@ -17,19 +23,19 @@ export async function POST(req: Request) {
 
     await connectDB();
 
-    const existing = await User.findOne({ email: email.toLowerCase() });
+    const existing = await User.findOne({ phone: normalizedPhone });
     if (existing) {
-      return NextResponse.json({ error: "Email đã được sử dụng" }, { status: 409 });
+      return NextResponse.json({ error: "Số điện thoại đã được sử dụng" }, { status: 409 });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await User.create({
       name,
-      email: email.toLowerCase(),
+      phone: normalizedPhone,
       passwordHash,
     });
 
-    return NextResponse.json({ id: user._id.toString(), name: user.name, email: user.email });
+    return NextResponse.json({ id: user._id.toString(), name: user.name, phone: user.phone });
   } catch (err) {
     console.error("REGISTER ERROR:", err);
     return NextResponse.json({ error: "Đã có lỗi xảy ra, vui lòng thử lại" }, { status: 500 });

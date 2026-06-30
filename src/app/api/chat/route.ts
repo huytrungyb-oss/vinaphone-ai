@@ -5,47 +5,69 @@ import Conversation from "@/models/Conversation";
 import { getOpenAI } from "@/lib/openai";
 import { getGemini } from "@/lib/gemini";
 import { getDeepSeek } from "@/lib/deepseek";
-import { getProviderForModel } from "@/lib/models";
+import { getProviderForModel, isProModel, DEFAULT_GUEST_MODEL } from "@/lib/models";
 
 const SYSTEM_PROMPT =
   "Bạn là Vinaphone AI, trợ lý ảo thông minh của Vinaphone. Hãy trả lời bằng tiếng Việt thân thiện, chính xác và hữu ích.";
 
+type ChatTurn = { role: "user" | "assistant"; content: string };
+
 export async function POST(req: Request) {
   const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Chưa đăng nhập" }, { status: 401 });
-  }
-
-  const { conversationId, message, model } = await req.json();
+  const { conversationId, message, model, history } = await req.json();
 
   if (!message || typeof message !== "string") {
     return NextResponse.json({ error: "Thiếu nội dung tin nhắn" }, { status: 400 });
   }
 
-  await connectDB();
+  const isGuest = !session?.user;
+  const requestedModel = model || DEFAULT_GUEST_MODEL;
 
-  let conversation = conversationId
-    ? await Conversation.findOne({ _id: conversationId, userId: session.user.id })
-    : null;
-
-  if (!conversation) {
-    conversation = await Conversation.create({
-      userId: session.user.id,
-      title: message.slice(0, 50),
-      model: model || "gpt-4o-mini",
-      messages: [],
-    });
+  if (isGuest && isProModel(requestedModel)) {
+    return NextResponse.json(
+      { error: "Vui lòng đăng ký tài khoản để sử dụng model PRO", code: "REGISTER_REQUIRED" },
+      { status: 401 }
+    );
   }
 
-  conversation.messages.push({ role: "user", content: message, createdAt: new Date() });
-  await conversation.save();
+  let conversation = null;
+  let chatHistory: ChatTurn[];
+  let selectedModel: string;
 
-  const chatHistory = conversation.messages.map((m: { role: string; content: string }) => ({
-    role: m.role,
-    content: m.content,
-  }));
+  if (isGuest) {
+    selectedModel = requestedModel;
+    const guestHistory: ChatTurn[] = Array.isArray(history)
+      ? history
+          .filter((m: ChatTurn) => m && typeof m.content === "string")
+          .map((m: ChatTurn) => ({ role: m.role, content: m.content }))
+      : [];
+    chatHistory = [...guestHistory, { role: "user", content: message }];
+  } else {
+    await connectDB();
 
-  const selectedModel = conversation.model || "gpt-4o-mini";
+    conversation = conversationId
+      ? await Conversation.findOne({ _id: conversationId, userId: session!.user!.id })
+      : null;
+
+    if (!conversation) {
+      conversation = await Conversation.create({
+        userId: session!.user!.id,
+        title: message.slice(0, 50),
+        model: requestedModel,
+        messages: [],
+      });
+    }
+
+    conversation.messages.push({ role: "user", content: message, createdAt: new Date() });
+    await conversation.save();
+
+    chatHistory = conversation.messages.map((m: { role: string; content: string }) => ({
+      role: m.role,
+      content: m.content,
+    }));
+    selectedModel = conversation.model || DEFAULT_GUEST_MODEL;
+  }
+
   const provider = getProviderForModel(selectedModel);
 
   const encoder = new TextEncoder();
@@ -53,14 +75,19 @@ export async function POST(req: Request) {
   const stream = new ReadableStream({
     async start(controller) {
       controller.enqueue(
-        encoder.encode(`event: meta\ndata: ${JSON.stringify({ conversationId: conversation._id.toString(), title: conversation.title })}\n\n`)
+        encoder.encode(
+          `event: meta\ndata: ${JSON.stringify({
+            conversationId: conversation ? conversation._id.toString() : null,
+            title: conversation ? conversation.title : message.slice(0, 50),
+          })}\n\n`
+        )
       );
 
       let fullResponse = "";
 
       try {
         if (provider === "gemini") {
-          const contents = chatHistory.map((m: { role: string; content: string }) => ({
+          const contents = chatHistory.map((m) => ({
             role: m.role === "assistant" ? "model" : "user",
             parts: [{ text: m.content }],
           }));
@@ -95,12 +122,14 @@ export async function POST(req: Request) {
           }
         }
 
-        conversation.messages.push({
-          role: "assistant",
-          content: fullResponse,
-          createdAt: new Date(),
-        });
-        await conversation.save();
+        if (conversation) {
+          conversation.messages.push({
+            role: "assistant",
+            content: fullResponse,
+            createdAt: new Date(),
+          });
+          await conversation.save();
+        }
 
         controller.enqueue(encoder.encode(`event: done\ndata: ${JSON.stringify({ ok: true })}\n\n`));
       } catch (err) {

@@ -3,6 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
+import { normalizePhone } from "@/lib/phone";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
@@ -14,17 +15,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Credentials({
       name: "credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
+        phone: { label: "Số điện thoại", type: "tel" },
         password: { label: "Password", type: "password" },
       },
       authorize: async (credentials) => {
-        const email = credentials?.email as string | undefined;
+        const phone = credentials?.phone as string | undefined;
         const password = credentials?.password as string | undefined;
 
-        if (!email || !password) return null;
+        if (!phone || !password) return null;
+
+        const normalizedPhone = normalizePhone(phone);
+        if (!normalizedPhone) return null;
 
         await connectDB();
-        const user = await User.findOne({ email: email.toLowerCase() });
+        const user = await User.findOne({ phone: normalizedPhone });
         if (!user) return null;
 
         const valid = await bcrypt.compare(password, user.passwordHash);
@@ -33,7 +37,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return {
           id: user._id.toString(),
           name: user.name,
-          email: user.email,
+          phone: user.phone,
         };
       },
     }),
@@ -42,12 +46,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        token.phone = (user as { phone?: string }).phone;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as { id?: string }).id = token.id as string;
+        (session.user as { id?: string; phone?: string }).id = token.id as string;
+        (session.user as { id?: string; phone?: string }).phone = token.phone as string;
       }
       return session;
     },

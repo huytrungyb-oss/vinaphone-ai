@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Send, Bot, User, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { Send, Bot, User, Sparkles, Lock } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { AVAILABLE_MODELS } from "@/lib/models";
+import { isProModel, type ModelId, DEFAULT_GUEST_MODEL } from "@/lib/models";
+import ModelSelector from "@/components/chat/ModelSelector";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -16,6 +18,7 @@ type Props = {
   conversationId?: string;
   initialMessages?: ChatMessage[];
   initialModel?: string;
+  isGuest?: boolean;
 };
 
 const SUGGESTIONS = [
@@ -25,13 +28,14 @@ const SUGGESTIONS = [
   "Gợi ý thực đơn ăn uống lành mạnh trong tuần",
 ];
 
-export default function ChatWindow({ conversationId, initialMessages, initialModel }: Props) {
+export default function ChatWindow({ conversationId, initialMessages, initialModel, isGuest = false }: Props) {
   const router = useRouter();
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages || []);
   const [input, setInput] = useState("");
-  const [model, setModel] = useState(initialModel || "gpt-4o-mini");
+  const [model, setModel] = useState(initialModel || DEFAULT_GUEST_MODEL);
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState("");
+  const [needsRegister, setNeedsRegister] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const currentIdRef = useRef<string | undefined>(conversationId);
 
@@ -44,11 +48,27 @@ export default function ChatWindow({ conversationId, initialMessages, initialMod
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  function handleModelChange(modelId: ModelId) {
+    if (isGuest && isProModel(modelId)) {
+      setNeedsRegister(true);
+      return;
+    }
+    setNeedsRegister(false);
+    setModel(modelId);
+  }
+
   async function sendMessage(text: string) {
     if (!text.trim() || streaming) return;
 
+    if (isGuest && isProModel(model)) {
+      setNeedsRegister(true);
+      return;
+    }
+
     setError("");
+    setNeedsRegister(false);
     setInput("");
+    const historyBeforeSend = messages;
     setMessages((prev) => [...prev, { role: "user", content: text }, { role: "assistant", content: "" }]);
     setStreaming(true);
 
@@ -60,8 +80,21 @@ export default function ChatWindow({ conversationId, initialMessages, initialMod
           conversationId: currentIdRef.current,
           message: text,
           model,
+          history: isGuest ? historyBeforeSend : undefined,
         }),
       });
+
+      if (res.status === 401) {
+        const data = await res.json().catch(() => ({}));
+        if (data.code === "REGISTER_REQUIRED") {
+          setNeedsRegister(true);
+        } else {
+          setError(data.error || "Vui lòng đăng nhập để tiếp tục");
+        }
+        setMessages((prev) => prev.slice(0, -2));
+        setStreaming(false);
+        return;
+      }
 
       if (!res.ok || !res.body) {
         throw new Error("Không thể kết nối tới máy chủ");
@@ -109,10 +142,12 @@ export default function ChatWindow({ conversationId, initialMessages, initialMod
         }
       }
 
-      if (!conversationId && newConversationId) {
+      if (!isGuest && !conversationId && newConversationId) {
         router.replace(`/chat/${newConversationId}`);
       }
-      router.refresh();
+      if (!isGuest) {
+        router.refresh();
+      }
     } catch {
       setError("Không thể kết nối tới máy chủ. Vui lòng thử lại.");
     } finally {
@@ -134,18 +169,23 @@ export default function ChatWindow({ conversationId, initialMessages, initialMod
           <Sparkles size={18} className="text-(--vnp-blue)" />
           <span className="font-medium text-sm text-(--vnp-gray-900)">Vinaphone AI</span>
         </div>
-        <select
-          value={model}
-          onChange={(e) => setModel(e.target.value)}
-          className="text-sm border border-(--vnp-gray-200) rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-(--vnp-blue) bg-white"
-        >
-          {AVAILABLE_MODELS.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.label}
-            </option>
-          ))}
-        </select>
+        <ModelSelector value={model} onChange={handleModelChange} isGuest={isGuest} />
       </header>
+
+      {needsRegister && (
+        <div className="bg-(--vnp-red)/5 border-b border-(--vnp-red)/20 px-6 py-3 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-sm text-(--vnp-gray-900)">
+            <Lock size={15} className="text-(--vnp-red) shrink-0" />
+            <span>Model PRO yêu cầu tài khoản. Đăng ký miễn phí để mở khoá toàn bộ model.</span>
+          </div>
+          <Link
+            href="/register"
+            className="shrink-0 text-sm font-medium px-4 py-1.5 rounded-lg bg-(--vnp-red) hover:bg-(--vnp-red-dark) text-white transition-colors"
+          >
+            Đăng ký ngay
+          </Link>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto">
         {isEmpty ? (
@@ -211,6 +251,15 @@ export default function ChatWindow({ conversationId, initialMessages, initialMod
 
       <div className="border-t border-(--vnp-gray-200) bg-white px-4 py-4">
         {error && <p className="text-xs text-(--vnp-red) max-w-3xl mx-auto mb-2">{error}</p>}
+        {isGuest && (
+          <p className="text-xs text-(--vnp-gray-700)/70 max-w-3xl mx-auto mb-2">
+            Bạn đang chat với tư cách khách - lịch sử sẽ không được lưu lại.{" "}
+            <Link href="/register" className="text-(--vnp-blue) font-medium hover:underline">
+              Đăng ký
+            </Link>{" "}
+            để lưu hội thoại và dùng model PRO.
+          </p>
+        )}
         <form onSubmit={handleSubmit} className="max-w-3xl mx-auto flex items-end gap-2">
           <textarea
             value={input}
