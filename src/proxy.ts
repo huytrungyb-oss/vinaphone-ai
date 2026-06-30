@@ -10,7 +10,6 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const { pathname } = req.nextUrl;
 
-  const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/register");
   const isProtected = pathname.startsWith("/chat");
 
   if (isProtected && !isLoggedIn) {
@@ -18,14 +17,9 @@ export default auth((req) => {
     return noStore(NextResponse.redirect(url));
   }
 
-  if (isAuthPage && isLoggedIn) {
-    const url = new URL("/chat", req.nextUrl.origin);
-    return noStore(NextResponse.redirect(url));
-  }
-
   return noStore(NextResponse.next());
 });
 
 export const config = {
-  matcher: ["/chat/:path*", "/login", "/register"],
+  matcher: ["/chat/:path*"],
 };
