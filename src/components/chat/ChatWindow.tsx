@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Send, Bot, User, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { AVAILABLE_MODELS } from "@/lib/openai";
+import { AVAILABLE_MODELS } from "@/lib/models";
 
 type ChatMessage = {
   role: "user" | "assistant";
