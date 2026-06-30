@@ -4,6 +4,8 @@ export const AVAILABLE_MODELS = [
   { id: "gpt-4-turbo", label: "GPT-4 Turbo", provider: "openai" },
   { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash (Nhanh)", provider: "gemini" },
   { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro (Mạnh mẽ)", provider: "gemini" },
+  { id: "deepseek-chat", label: "DeepSeek Chat", provider: "deepseek" },
+  { id: "deepseek-reasoner", label: "DeepSeek Reasoner (Suy luận sâu)", provider: "deepseek" },
 ] as const;
 
 export type ModelId = (typeof AVAILABLE_MODELS)[number]["id"];

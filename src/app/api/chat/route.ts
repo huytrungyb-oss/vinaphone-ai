@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/db";
 import Conversation from "@/models/Conversation";
 import { getOpenAI } from "@/lib/openai";
 import { getGemini } from "@/lib/gemini";
+import { getDeepSeek } from "@/lib/deepseek";
 import { getProviderForModel } from "@/lib/models";
 
 const SYSTEM_PROMPT =
@@ -78,7 +79,8 @@ export async function POST(req: Request) {
             }
           }
         } else {
-          const completion = await getOpenAI().chat.completions.create({
+          const client = provider === "deepseek" ? getDeepSeek() : getOpenAI();
+          const completion = await client.chat.completions.create({
             model: selectedModel,
             messages: [{ role: "system", content: SYSTEM_PROMPT }, ...chatHistory],
             stream: true,
