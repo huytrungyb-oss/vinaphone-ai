@@ -1,11 +1,6 @@
 import dns from "node:dns";
 import mongoose from "mongoose";
 
-// Một số ISP/mạng nội bộ (vd: VNPT, Viettel) khiến Node.js không tra cứu được
-// DNS SRV record của MongoDB Atlas (mongodb+srv://) dù hệ điều hành tra được bình thường.
-// Ép Node dùng DNS công cộng để tránh lỗi "querySrv ECONNREFUSED".
-dns.setServers(["8.8.8.8", "1.1.1.1"]);
-
 type MongooseCache = {
   conn: typeof mongoose | null;
   promise: Promise<typeof mongoose> | null;
@@ -28,6 +23,15 @@ export async function connectDB() {
   }
 
   if (!cache.promise) {
+    // Một số ISP/mạng nội bộ (vd: VNPT, Viettel) khiến Node.js không tra cứu được
+    // DNS SRV record của MongoDB Atlas (mongodb+srv://). Thử ép dùng DNS công cộng,
+    // nhưng bỏ qua an toàn nếu môi trường host (vd Hostinger) không cho phép thao tác này.
+    try {
+      dns.setServers(["8.8.8.8", "1.1.1.1"]);
+    } catch {
+      // ignore - một số môi trường sandbox chặn việc đổi DNS server cấp tiến trình
+    }
+
     cache.promise = mongoose.connect(MONGODB_URI, {
       bufferCommands: false,
     });
